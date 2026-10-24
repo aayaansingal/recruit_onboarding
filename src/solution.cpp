@@ -1,16 +1,91 @@
 #include "solution_interface.hpp"
+#include <cmath>
+
+using namespace std;
 
 // ============================================================================
 // This is the only file you should need to edit.
 // Read INSTRUCTIONS.md before you start.
 // ============================================================================
-std::vector<Point> buildPath(const std::vector<Point>& points, const CarState& car) {
-    (void)points;
-    (void)car;
 
-    // TODO: implement your path traversal here.
-    //
-    // Returning an empty path for now so the project builds and the test
-    // runner runs end-to-end - everything will fail until you implement this.
-    return {};
+//The two hard rules
+const double MAX_STEP_DISTANCE = 10.0; // metres
+const double CONE_HALF_ANGLE_DEGREES = 30.0; // degrees either side of heading
+
+//~value of Pi for conversions later
+const double PI = 3.14159265358979323846;
+
+vector<Point> buildPath(const vector<Point>& points, const CarState& car) {
+    vector<Point> path;
+
+    //Now I know which points I've already been to
+    //NOT a constructor
+    vector<bool> visited(points.size(), false);
+
+    //Our location + which way we're facing
+    double current_x = car.x;
+    double current_y = car.y;
+    double heading = car.heading;
+
+    //Checking if a point is inside the cone
+    double minCosine = cos(CONE_HALF_ANGLE_DEGREES * PI / 180.0);
+
+    while (true) {
+        //Unit vector pointing the way we are facing
+        double forward_x = cos(heading);
+        double forward_y = sin(heading);
+
+        //Look through every point & rmr the closest valid one
+        int bestIndex = -1; //since its an index, -1 means no point found
+        double bestDistance = 0.0;
+
+        for (int i = 0; i < (int)points.size(); i++) {
+            if (visited[i]) {
+                continue;
+            }
+
+            double dx = points[i].x - current_x;
+            double dy = points[i].y - current_y;
+            double distance = sqrt(dx * dx + dy * dy);
+
+            //Edge case: skip a point sitting right on top of us
+            if (distance < 0.000001) {
+                continue;
+            }
+
+            //Checking rule 1
+            if (distance > MAX_STEP_DISTANCE) {
+                continue;
+            }
+
+            //Checking rule 2
+            double cosine = (dx * forward_x + dy * forward_y) / distance;
+            if (cosine < minCosine) {
+                continue;
+            }
+
+            //If both rules pass, keep point if it's the closest one we've seen so far 
+            if (bestIndex == -1 || distance < bestDistance) {
+                bestIndex = i;
+                bestDistance = distance;
+            }
+        }
+
+        //No valid point left ahead of us anymore
+        if (bestIndex == -1) {
+            break;
+        }
+
+        //Move to the chosen point & adjust heading to face the next point
+        Point next = points[bestIndex];
+        //use arctan function
+        heading = atan2(next.y - current_y, next.x - current_x);
+        current_x = next.x;
+        current_y = next.y;
+
+        visited[bestIndex] = true;
+        path.push_back(next);
+    }
+
+    return path;
 }
